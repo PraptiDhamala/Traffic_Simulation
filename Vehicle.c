@@ -137,113 +137,127 @@ struct vehicle generateRandomVehicle(){
     return v;
 }
 
-int main()
-{
-    srand(time(0));
-    struct Queue roads[5];
-    int currentRoad = 0;
-for(int i = 0; i < 5; i++) {
-    roads[i].front = -1;
-    roads[i].rear = -1;
+int getSize(struct Queue *q) {
+    if(isEmpty(q)) return 0;
+    return q->rear - q->front + 1;
 }
 
-    for(int i=0;i<5;i++)
-    {
-        initializequeue(&roads[i]);
+int getSmartSignal(struct Queue roads[]) {
+    int max = -1;
+    int index = 0;
+
+    for(int i = 0; i < 5; i++) {
+        int size = getSize(&roads[i]);
+        if(size > max) {
+            max = size;
+            index = i;
+        }
     }
-int choices;
-do
-{
-         #ifdef _WIN32
-            system("cls");
-        #else
-            system("clear");
-        #endif
+    return index;
+}
+
+int checkEmergency(struct Queue roads[]) {
+    for(int i = 0; i < 5; i++) {
+        if(!isEmpty(&roads[i])) {
+            if(roads[i].vehicles[roads[i].front].priority == 1) {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+void exportToJSON(struct Queue roads[], int greenRoad) {
+
+    FILE *fp = fopen("output.json", "w");
+
+    fprintf(fp,
+    "{\n"
+    "\"road1\": %d,\n"
+    "\"road2\": %d,\n"
+    "\"road3\": %d,\n"
+    "\"road4\": %d,\n"
+    "\"road5\": %d,\n"
+    "\"green\": %d\n"
+    "}",
+    getSize(&roads[0]),
+    getSize(&roads[1]),
+    getSize(&roads[2]),
+    getSize(&roads[3]),
+    getSize(&roads[4]),
+    greenRoad + 1
+    );
+
+    fclose(fp);
+}
+
+int main() {
+
+    srand(time(0));
+
+    struct Queue roads[5];
+
+    for(int i=0;i<5;i++)
+        initializequeue(&roads[i]);
+
+    int cycle = 0;
+
+    while(1) {
+
+        cycle++;
+        printf("\n================ CYCLE %d ================\n", cycle);
+
+        for(int i=0;i<5;i++) {
+
+            int newVehicles;
+
+            if(cycle % 20 < 10)
+                newVehicles = rand()%4 + 2;  // heavy traffic
+            else
+                newVehicles = rand()%4;      // normal traffic
+
+            for(int j=0;j<newVehicles;j++) {
+                struct vehicle v = generateRandomVehicle();
+                enqueue(&roads[i], v);
+            }
+        }
+
         for(int i=0;i<5;i++)
             updateWaitingTime(&roads[i]);
 
+        int emergencyRoad = checkEmergency(roads);
+        int currentRoad;
 
-    printf("======================================================================================== \n");
-    printf("          SMART TRAFFIC CONTROL SYSTEM\n");
-    printf("=========================================================================================\n");
+        if(emergencyRoad != -1) {
+            currentRoad = emergencyRoad;
+            printf("Emergency override! Road %d gets GREEN\n", currentRoad+1);
+        }
+        else {
+            currentRoad = getSmartSignal(roads);
+            printf("Smart Signal → Road %d gets GREEN\n", currentRoad+1);
+        }
 
-    printf("Current Signal Active → ROAD %d\n\n", currentRoad + 1);
-    printf("1. Add vehicle\n");
-    printf("2. Pass vehicle\n");
-    printf("3. Display Road Status \n");
-    printf("4. Display Counter \n");
-    printf("5. Exit now!!!\n");
-    printf("Enter Your Choice\n");
-if (scanf("%d", &choices) != 1) {
-            printf("Invalid input! Please enter a number.\n");
-            while(getchar() != '\n'); // Clear the buffer
-            choices = 0;        // Set to a non-exit value to continue loop
-            continue;
-        }
-    if(choices==1)
-    { 
-        int roadnumber;
-        struct vehicle v = {0, 0, 0};
-        printf("Enter Road Number (1-5) : ");
-        scanf("%d",&roadnumber);
-        if(roadnumber<1 || roadnumber>5 )
-        {
-         printf("Invalid Road Number\n") ;  
-        sleep(1);
-         continue;
-        }
-        else{
-            printf("Enter Vehicle ID\n");
-            scanf("%d",&v.id);
+        // 4️Pass 3 Vehicles
+        for(int i=0;i<3;i++)
+            dequeue(&roads[currentRoad]);
 
-            printf("\nEnter the priority i;e 0 if normal and 1 if emergency \n ");
-            scanf("%d",&v.priority);
-            enqueue(&roads[roadnumber-1],v);
-            sleep(1);
+        //Display Status
+        for(int i=0;i<5;i++) {
+            printf("Road %d: %d vehicles | Avg Wait: %.2f\n",
+                i+1,
+                getSize(&roads[i]),
+                avgWaitingTime(&roads[i])
+            );
         }
-    }
-    else if(choices==2)
-    {
-    int roadnumber;
-        struct vehicle v;
-        printf("Clearing Road %d: ",currentRoad+1); 
-        dequeue(&roads[currentRoad]);
-        currentRoad=(currentRoad+1)%5;
+
+        printf("Total Entered: %d | Total Passed: %d\n",
+                totalEntered, totalPassed);
+
+        // Export JSON
+        exportToJSON(roads, currentRoad);
+
         sleep(1);
     }
-    else if(choices==3)
-{
-    printf("\n======================================== Road Status ===================================== \n");
-    for(int i=0;i<5;i++)
-    {
-        printf("Road %d ",i+1);
-        displayqueue(&roads[i]);
-        printf(" | Density: ");
-        showDensity(&roads[i]);
-        printf(" | Avg Waiting: %.2f ticks\n", avgWaitingTime(&roads[i]));
 
-    }
-             printf("=========================================================================================\n");
-            printf("\nPress Enter to continue...\n");
-            getchar(); getchar();
+    return 0;
 }
- else if(choices==4)
-{
- printf("Total Vehicles Entered: %d\n", totalEntered);
-printf("Total Vehicles Passed: %d\n", totalPassed);
-printf("\nPress Enter to continue...\n");
- getchar(); getchar();
-}
-else if(choices==5)
-{
-    printf("\n ============================ Exiting Traffic system ===================================== \n");
-    break;
-}
-else{
-    printf("Invalid Choice \n");
-    sleep(1);
 
-}
-}while(choices != 5);
-return 0;
-}
