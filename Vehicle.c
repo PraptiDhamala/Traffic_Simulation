@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #define MAX 50
+int totalEntered = 0;
+int totalPassed = 0;
+
 struct vehicle{
     int id;
     int priority;
@@ -59,6 +62,7 @@ void enqueue(struct Queue *q, struct vehicle v){
     q->vehicles[q->rear]=v;
     printf("Vehicle %d added successfully",v.id);
 }
+totalEntered++;
   }
 void dequeue(struct Queue *q)
 {
@@ -69,7 +73,13 @@ return;
 }
 struct vehicle v=q->vehicles[q->front];
 printf("Vehicle %d passed the traffic \n",v.id);
+    if(v.priority==1)
+        printf("Emergency vehicle %d passed!\n", v.id);
+    else
+        printf("Vehicle %d passed!\n", v.id);
+
 q->front++;
+totalPassed++;
 if(q->front>q->rear)
 {
     q->front=-1;
@@ -89,10 +99,21 @@ for(int i=q->front; i<= q->rear; i++)
     printf("%d",q->vehicles[i].id);
 }
 }
+void showDensity(struct Queue *q)
+{
+    if(isEmpty(q))
+    {
+        printf("Road is empty");
+    }
+     int size = q->rear - q->front + 1;
+    if(size <= 3) printf("Low Traffic");
+    else if(size <= 7) printf("Medium Traffic");
+    else printf("High Traffic");
+}
 int main()
 {
     struct Queue roads[5];
-
+    int currentRoad = 0;
 for(int i = 0; i < 5; i++) {
     roads[i].front = -1;
     roads[i].rear = -1;
@@ -108,8 +129,9 @@ do
     printf("\n******************** TRAFFIC CONTROL SYSTEM ********************\n");
     printf("1. Add vehicle\n");
     printf("2. Pass vehicle\n");
-    printf("3. Display Roads\n");
-    printf("4. Exit now!!!\n");
+    printf("3. Display Road Status \n");
+    printf("4. Display Counter \n");
+    printf("5. Exit now!!!\n");
     printf("Enter Your Choice\n");
 if (scanf("%d", &choices) != 1) {
             printf("Invalid input! Please enter a number.\n");
@@ -118,7 +140,7 @@ if (scanf("%d", &choices) != 1) {
             continue;
         }
     if(choices==1)
-    {
+    { 
         int roadnumber;
         struct vehicle v = {0, 0};
         printf("Enter Road Number (1-5) : ");
@@ -141,34 +163,37 @@ if (scanf("%d", &choices) != 1) {
     {
     int roadnumber;
         struct vehicle v;
-        printf("Enter Road Number (1-5) : ");
-        scanf("%d",&roadnumber);
-        if(roadnumber<1 || roadnumber>5 )
-        {
-         printf("Invalid Road Number\n") ;  
-         continue;
-        }      
-        dequeue(&roads[roadnumber-1]);
+        printf("Clearing Road %d: ",currentRoad+1); 
+        dequeue(&roads[currentRoad+1]);
+        currentRoad=(currentRoad+1)%5;
 
     }
     else if(choices==3)
 {
-    printf("\n*********** Road Status *********** \n");
+    printf("\n******************** Road Status ******************** \n");
     for(int i=0;i<5;i++)
     {
         printf("Road %d ",i+1);
         displayqueue(&roads[i]);
-        printf("\n");
+        printf(" | ");
+        showDensity(&roads[i]);
+          printf("\n");
+
     }
 }
-else if(choices==4)
+ else if(choices==4)
 {
-    printf("\n*********** Exiting Traffic system *********** \n");
+ printf("Total Vehicles Entered: %d\n", totalEntered);
+printf("Total Vehicles Passed: %d\n", totalPassed);
+}
+else if(choices==5)
+{
+    printf("\n******************** Exiting Traffic system ******************** \n");
     break;
 }
 else{
     printf("Invalid Choice \n");
 }
-}while(choices != 4);
+}while(choices != 5);
 return 0;
 }
