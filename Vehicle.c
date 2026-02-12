@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
+
 #define MAX 50
 int totalEntered = 0;
 int totalPassed = 0;
@@ -7,6 +10,8 @@ int totalPassed = 0;
 struct vehicle{
     int id;
     int priority;
+    int waitingTime;
+
 };
 struct Queue{
     struct vehicle vehicles[MAX];
@@ -96,7 +101,7 @@ return;
 }
 for(int i=q->front; i<= q->rear; i++)
 {
-    printf("%d",q->vehicles[i].id);
+    printf("%d\n",q->vehicles[i].id);
 }
 }
 void showDensity(struct Queue *q)
@@ -110,8 +115,31 @@ void showDensity(struct Queue *q)
     else if(size <= 7) printf("Medium Traffic");
     else printf("High Traffic");
 }
+float avgWaitingTime(struct Queue *q){
+    if(isEmpty(q)) return 0;
+    int sum = 0;
+    for(int i=q->front;i<=q->rear;i++)
+        sum += q->vehicles[i].waitingTime;
+    return (float)sum / (q->rear - q->front + 1);
+}
+
+void updateWaitingTime(struct Queue *q){
+    if(isEmpty(q)) return;
+    for(int i=q->front;i<=q->rear;i++)
+        q->vehicles[i].waitingTime++;
+}
+
+struct vehicle generateRandomVehicle(){
+    struct vehicle v;
+    v.id = rand()%1000 + 1;
+    v.priority = rand()%2;
+    v.waitingTime = 0;
+    return v;
+}
+
 int main()
 {
+    srand(time(0));
     struct Queue roads[5];
     int currentRoad = 0;
 for(int i = 0; i < 5; i++) {
@@ -126,7 +154,20 @@ for(int i = 0; i < 5; i++) {
 int choices;
 do
 {
-    printf("\n******************** TRAFFIC CONTROL SYSTEM ********************\n");
+         #ifdef _WIN32
+            system("cls");
+        #else
+            system("clear");
+        #endif
+        for(int i=0;i<5;i++)
+            updateWaitingTime(&roads[i]);
+
+
+    printf("======================================================================================== \n");
+    printf("          SMART TRAFFIC CONTROL SYSTEM\n");
+    printf("=========================================================================================\n");
+
+    printf("Current Signal Active → ROAD %d\n\n", currentRoad + 1);
     printf("1. Add vehicle\n");
     printf("2. Pass vehicle\n");
     printf("3. Display Road Status \n");
@@ -142,12 +183,13 @@ if (scanf("%d", &choices) != 1) {
     if(choices==1)
     { 
         int roadnumber;
-        struct vehicle v = {0, 0};
+        struct vehicle v = {0, 0, 0};
         printf("Enter Road Number (1-5) : ");
         scanf("%d",&roadnumber);
         if(roadnumber<1 || roadnumber>5 )
         {
          printf("Invalid Road Number\n") ;  
+        sleep(1);
          continue;
         }
         else{
@@ -157,6 +199,7 @@ if (scanf("%d", &choices) != 1) {
             printf("\nEnter the priority i;e 0 if normal and 1 if emergency \n ");
             scanf("%d",&v.priority);
             enqueue(&roads[roadnumber-1],v);
+            sleep(1);
         }
     }
     else if(choices==2)
@@ -164,35 +207,42 @@ if (scanf("%d", &choices) != 1) {
     int roadnumber;
         struct vehicle v;
         printf("Clearing Road %d: ",currentRoad+1); 
-        dequeue(&roads[currentRoad+1]);
+        dequeue(&roads[currentRoad]);
         currentRoad=(currentRoad+1)%5;
-
+        sleep(1);
     }
     else if(choices==3)
 {
-    printf("\n******************** Road Status ******************** \n");
+    printf("\n======================================== Road Status ===================================== \n");
     for(int i=0;i<5;i++)
     {
         printf("Road %d ",i+1);
         displayqueue(&roads[i]);
-        printf(" | ");
+        printf(" | Density: ");
         showDensity(&roads[i]);
-          printf("\n");
+        printf(" | Avg Waiting: %.2f ticks\n", avgWaitingTime(&roads[i]));
 
     }
+             printf("=========================================================================================\n");
+            printf("\nPress Enter to continue...\n");
+            getchar(); getchar();
 }
  else if(choices==4)
 {
  printf("Total Vehicles Entered: %d\n", totalEntered);
 printf("Total Vehicles Passed: %d\n", totalPassed);
+printf("\nPress Enter to continue...\n");
+ getchar(); getchar();
 }
 else if(choices==5)
 {
-    printf("\n******************** Exiting Traffic system ******************** \n");
+    printf("\n ============================ Exiting Traffic system ===================================== \n");
     break;
 }
 else{
     printf("Invalid Choice \n");
+    sleep(1);
+
 }
 }while(choices != 5);
 return 0;
