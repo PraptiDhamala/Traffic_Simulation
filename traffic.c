@@ -18,26 +18,16 @@ struct Queue {
     int rear;
 };
 
-int totalPassed = 0;
-
+int totalPassed = 0; // Global counter
 
 void initializeQueue(struct Queue *q) {
     q->front = -1;
     q->rear = -1;
 }
 
-int isEmpty(struct Queue *q) {
-    return (q->front == -1);
-}
-
-int isFull(struct Queue *q) {
-    return (q->rear == MAX - 1);
-}
-
-int getSize(struct Queue *q) {
-    if (isEmpty(q)) return 0;
-    return q->rear - q->front + 1;
-}
+int isEmpty(struct Queue *q) { return (q->front == -1); }
+int isFull(struct Queue *q) { return (q->rear == MAX - 1); }
+int getSize(struct Queue *q) { return (isEmpty(q)) ? 0 : q->rear - q->front + 1; }
 
 void enqueue(struct Queue *q, struct vehicle v) {
     if (isFull(q)) return;
@@ -48,14 +38,10 @@ void enqueue(struct Queue *q, struct vehicle v) {
         return;
     }
 
-    if (v.priority == 1) {
+    if (v.priority == 1) { // Emergency vehicles jump ahead of standard cars
         int pos = q->front;
-        while (pos <= q->rear && q->vehicles[pos].priority == 1)
-            pos++;
-
-        for (int i = q->rear; i >= pos; i--)
-            q->vehicles[i + 1] = q->vehicles[i];
-
+        while (pos <= q->rear && q->vehicles[pos].priority == 1) pos++;
+        for (int i = q->rear; i >= pos; i--) q->vehicles[i + 1] = q->vehicles[i];
         q->vehicles[pos] = v;
         q->rear++;
     } else {
@@ -64,112 +50,72 @@ void enqueue(struct Queue *q, struct vehicle v) {
     }
 }
 
-struct vehicle dequeue(struct Queue *q) {
-    struct vehicle empty = {-1,0,0};
-
-    if (isEmpty(q))
-        return empty;
-
-    struct vehicle v = q->vehicles[q->front];
-    q->front++;
-
-    if (q->front > q->rear)
-        initializeQueue(q);
-
-    totalPassed++;
-    return v;
-}
-
-void updateWaitingTime(struct Queue *q) {
-    if (isEmpty(q)) return;
-
-    for (int i = q->front; i <= q->rear; i++)
-        q->vehicles[i].waitingTime++;
-}
-
-float avgWaitingTime(struct Queue *q) {
-    if (isEmpty(q)) return 0;
-
-    int sum = 0;
-    for (int i = q->front; i <= q->rear; i++)
-        sum += q->vehicles[i].waitingTime;
-
-    return (float)sum / getSize(q);
-}
-
-
-struct vehicle generateVehicle() {
-    struct vehicle v;
-    v.id = rand() % 1000 + 1;
-    v.priority = rand() % 5 == 0 ? 1 : 0;  
-    v.waitingTime = 0;
-    return v;
-}
-
-int selectSignal(struct Queue roads[]) {
+// Logic to find the most congested road (The "Best Path" to open)
+int selectBestRoad(struct Queue roads[]) {
     int best = 0;
-    int maxSize = 0;
-
+    int maxWait = -1;
     for (int i = 0; i < ROADS; i++) {
         int size = getSize(&roads[i]);
-        if (size > maxSize) {
-            maxSize = size;
+        if (size > maxWait) {
+            maxWait = size;
             best = i;
         }
     }
     return best;
 }
 
-void printData(struct Queue roads[], int greenRoad) {
-    printf("{");
-    printf("\"roads\":[");
+void printJsonData(struct Queue roads[], int greenRoad, int hour) {
+    printf("{\"hour\":%d,\"green\":%d,\"passed\":%d,\"roads\":[", hour, greenRoad + 1, totalPassed);
     for (int i = 0; i < ROADS; i++) {
-        printf("{\"id\":%d,\"size\":%d,\"avg_wait\":%.2f,\"vehicles\":[", 
-               i + 1, getSize(&roads[i]), avgWaitingTime(&roads[i]));
-        
+        printf("{\"size\":%d,\"vehicles\":[", getSize(&roads[i]));
         for (int j = roads[i].front; j <= roads[i].rear && j != -1; j++) {
-            printf("%d", roads[i].vehicles[j].priority);
-            if (j < roads[i].rear) printf(",");
+            printf("%d%s", roads[i].vehicles[j].priority, (j < roads[i].rear ? "," : ""));
         }
-        
-        printf("]}");
-        if (i < ROADS - 1) printf(",");
+        printf("]}%s", (i < ROADS - 1 ? "," : ""));
     }
-    printf("],");
-    printf("\"green\":%d,", greenRoad + 1);
-    printf("\"passed\":%d", totalPassed);
-    printf("}\n");
+    printf("]}\n");
     fflush(stdout);
 }
 
 int main() {
     srand(time(0));
     struct Queue roads[ROADS];
-
-    for (int i = 0; i < ROADS; i++)
-        initializeQueue(&roads[i]);
+    for (int i = 0; i < ROADS; i++) initializeQueue(&roads[i]);
+    
+    int ticks = 0;
+    int hour = 9; // Start at 9 AM
 
     while (1) {
+        ticks++;
+        // Advance time every 50 loops
+        if (ticks % 50 == 0) hour = (hour + 1) % 24;
+
+        // Density Logic
+        // 9 AM - 10 AM (hour == 9) -> 20% chance (Low)
+        // 5 PM - 7 PM (hour 17-19) -> 80% chance (High)
+        int spawnChance = (hour >= 17 && hour <= 19) ? 80 : 25;
+
         for (int i = 0; i < ROADS; i++) {
-            if ((rand() % 100) < 50) {   
-                enqueue(&roads[i], generateVehicle());
+            if ((rand() % 100) < spawnChance) {
+                struct vehicle v = {rand() % 1000, (rand() % 10 == 0), 0};
+                enqueue(&roads[i], v);
             }
         }
 
-        for (int i = 0; i < ROADS; i++)
-            updateWaitingTime(&roads[i]);
+        int greenRoad = selectBestRoad(roads);
 
-        int greenRoad = selectSignal(roads);
-
-        for (int i = 0; i < 5; i++) {
+        // Dequeue (Let cars pass)
+        for (int i = 0; i < 3; i++) {
             if (!isEmpty(&roads[greenRoad])) {
-                dequeue(&roads[greenRoad]);
+                roads[greenRoad].front++; // Simple dequeue logic
+                if (roads[greenRoad].front > roads[greenRoad].rear) 
+                    initializeQueue(&roads[greenRoad]);
+                totalPassed++;
             }
         }
 
-        printData(roads, greenRoad);
-
-        usleep(200000); 
+        printJsonData(roads, greenRoad, hour);
+        usleep(300000); // 0.3 seconds per tick
     }
     return 0;
 }
