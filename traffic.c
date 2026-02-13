@@ -18,7 +18,7 @@ struct Queue {
     int rear;
 };
 
-int totalPassed = 0; // Global counter
+int totalPassed = 0; 
 
 void initializeQueue(struct Queue *q) {
     q->front = -1;
@@ -38,7 +38,7 @@ void enqueue(struct Queue *q, struct vehicle v) {
         return;
     }
 
-    if (v.priority == 1) { // Emergency vehicles jump ahead of standard cars
+    if (v.priority == 1) { 
         int pos = q->front;
         while (pos <= q->rear && q->vehicles[pos].priority == 1) pos++;
         for (int i = q->rear; i >= pos; i--) q->vehicles[i + 1] = q->vehicles[i];
@@ -50,7 +50,6 @@ void enqueue(struct Queue *q, struct vehicle v) {
     }
 }
 
-// Logic to find the most congested road (The "Best Path" to open)
 int selectBestRoad(struct Queue roads[]) {
     int best = 0;
     int maxWait = -1;
@@ -83,16 +82,13 @@ int main() {
     for (int i = 0; i < ROADS; i++) initializeQueue(&roads[i]);
     
     int ticks = 0;
-    int hour = 9; // Start at 9 AM
+    int hour = 9; 
 
     while (1) {
         ticks++;
-        // Advance time every 50 loops
         if (ticks % 50 == 0) hour = (hour + 1) % 24;
 
-        // Density Logic
-        // 9 AM - 10 AM (hour == 9) -> 20% chance (Low)
-        // 5 PM - 7 PM (hour 17-19) -> 80% chance (High)
+        
         int spawnChance = (hour >= 17 && hour <= 19) ? 80 : 25;
 
         for (int i = 0; i < ROADS; i++) {
@@ -104,10 +100,9 @@ int main() {
 
         int greenRoad = selectBestRoad(roads);
 
-        // Dequeue (Let cars pass)
         for (int i = 0; i < 3; i++) {
             if (!isEmpty(&roads[greenRoad])) {
-                roads[greenRoad].front++; // Simple dequeue logic
+                roads[greenRoad].front++; 
                 if (roads[greenRoad].front > roads[greenRoad].rear) 
                     initializeQueue(&roads[greenRoad]);
                 totalPassed++;
@@ -115,7 +110,7 @@ int main() {
         }
 
         printJsonData(roads, greenRoad, hour);
-        usleep(300000); // 0.3 seconds per tick
+        usleep(300000); 
     }
     return 0;
 }
